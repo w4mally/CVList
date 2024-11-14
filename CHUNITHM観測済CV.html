@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHUNITHM 観測済CV</title>
+    <style>
+        /* 全体のスタイル */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        /* 見出しのスタイル */
+        header {
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+            font-size: 2em;
+            position: relative;
+        }
+        
+        /* 見出し下の小さい名前 */
+        header div {
+            font-size: 0.8em;
+            color: #ffffff;
+        }
+
+        /* 検索・フィルターエリア */
+        .search-container {
+            padding: 20px;
+            text-align: center;
+            background-color: #e9e9e9;
+        }
+
+        /* 入力ボックスとボタンのスタイル */
+        input[type="text"], select {
+            padding: 10px;
+            font-size: 1em;
+            margin-right: 10px;
+        }
+
+        /* タグ選択のスタイル */
+        .filter-dropdown {
+            padding: 10px;
+            font-size: 1em;
+        }
+
+        /* データ表示エリア */
+        .celebrity-container {
+            padding: 20px;
+        }
+
+        .celebrity-card {
+            background-color: #ffffff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        .celebrity-name {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .celebrity-furigana {
+            font-size: 0.8em;
+            color: #555;
+        }
+
+        /* 該当なしメッセージ */
+        .no-results {
+            text-align: center;
+            font-size: 1em;
+            color: #555;
+        }
+
+        /* 絞り込み中のボタンスタイル */
+        .active-filter {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 見出し -->
+    <header>
+        CHUNITHM 観測済CV
+        <div>@abcdefg</div>
+    </header>
+
+    <!-- 検索およびフィルターエリア -->
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="名前や出演作で検索">
+        <button onclick="searchCelebrities()">検索</button>
+        <button onclick="sortCelebrities()">あいうえお順で並べ替え</button>
+
+        <!-- タグ選択用のドロップダウン -->
+        <select id="tagDropdown" class="filter-dropdown" onchange="filterByTag()">
+            <option value="">主な出演作で検索する</option>
+        </select>
+    </div>
+
+    <!-- 声優リスト表示エリア -->
+    <div class="celebrity-container" id="celebrityContainer">
+        <!-- ここにJavaScriptで声優カードを挿入 -->
+    </div>
+
+    <script>
+        // 声優データのサンプル
+        const celebrities = [
+            { name: "声優A", furigana: "せいゆうえー", tags: ["ドラマX", "映画Y"] },
+            { name: "声優B", furigana: "せいゆうびー", tags: ["バラエティ", "映画Y"] },
+            { name: "声優C", furigana: "せいゆうしー", tags: ["アニメZ", "ドラマX"] }
+        ];
+
+        // 使用するタグのリスト
+        const tags = ["ドラマX", "映画Y", "バラエティ", "アニメZ"];  // 任意の順番で並び替え可能
+
+        // 初期データを表示
+        function displayCelebrities(list) {
+            const container = document.getElementById("celebrityContainer");
+            container.innerHTML = ""; // 初期化
+
+            if (list.length === 0) {
+                container.innerHTML = '<div class="no-results">※該当なし</div>';
+                return;
+            }
+
+            list.forEach(celeb => {
+                const card = document.createElement("div");
+                card.className = "celebrity-card";
+                card.innerHTML = `
+                    <div class="celebrity-furigana">${celeb.furigana}</div>
+                    <div class="celebrity-name">${celeb.name}</div>
+                    <div class="celebrity-tags">主な出演作: ${celeb.tags.join(", ")}</div>
+                `;
+                card.onclick = () => displayCelebrityDetails(celeb);
+                container.appendChild(card);
+            });
+        }
+
+        // 名前やタグで検索
+        function searchCelebrities() {
+            const query = document.getElementById("searchInput").value.toLowerCase();
+            const filtered = celebrities.filter(celeb => 
+                celeb.name.toLowerCase().includes(query) ||
+                celeb.tags.some(tag => tag.toLowerCase().includes(query))
+            );
+            displayCelebrities(filtered);
+        }
+
+        // あいうえお順に並べ替え
+        function sortCelebrities() {
+            const sorted = [...celebrities].sort((a, b) => a.furigana.localeCompare(b.furigana, 'ja'));
+            displayCelebrities(sorted);
+        }
+
+        // タグでフィルタリング
+        function filterByTag() {
+            const selectedTag = document.getElementById("tagDropdown").value;
+            const filtered = celebrities.filter(celeb => celeb.tags.includes(selectedTag));
+            displayCelebrities(filtered);
+
+            // 選択されているタグのボタンにスタイルを適用
+            const options = document.querySelectorAll("#tagDropdown option");
+            options.forEach(option => {
+                if (option.value === selectedTag) {
+                    option.classList.add("active-filter");
+                } else {
+                    option.classList.remove("active-filter");
+                }
+            });
+        }
+
+        // タグ選択ドロップダウンにタグを追加
+        function populateTagDropdown() {
+            const dropdown = document.getElementById("tagDropdown");
+            tags.forEach(tag => {
+                const option = document.createElement("option");
+                option.value = tag;
+                option.innerText = tag;
+                dropdown.appendChild(option);
+            });
+        }
+
+        // 声優の詳細ページ表示
+        function displayCelebrityDetails(celeb) {
+            alert(`声優: ${celeb.name}\nふりがな: ${celeb.furigana}\n主な出演作: ${celeb.tags.join(", ")}`);
+        }
+
+        // ページがロードされたときにタグを表示
+        populateTagDropdown();
+        
+        // 初期表示
+        displayCelebrities(celebrities);
+    </script>
+
+</body>
+</html>
+
