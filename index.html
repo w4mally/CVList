@@ -80,11 +80,12 @@
             color: #555;
         }
 
-        /* 該当なしメッセージ */
-        .no-results {
+        /* 検索ヒット数の表示 */
+        .hit-count {
             text-align: center;
             font-size: 1em;
-            color: #555;
+            color: #333;
+            margin-top: 10px;
         }
 
         /* フッターのスタイル */
@@ -103,7 +104,7 @@
     <!-- ヘッダー -->
     <header>
         CHUNITHM 観測済CV
-        <div>@abcdefg</div>
+        <div>※データ整理面倒すぎてデフォルト並びほとんど機能していません</div>
     </header>
 
     <!-- 検索およびフィルターエリア -->
@@ -116,7 +117,7 @@
         
         <!-- 主な出演作で検索 -->
         <div>
-            <select id="tagDropdown" onchange="filterByTag()" style="display: none;">
+            <select id="tagDropdown" onchange="filterByTag()">
                 <option value="">主な出演作で検索する</option>
             </select>
         </div>
@@ -128,10 +129,18 @@
                 <label><input type="radio" name="searchType" value="tag" onchange="changeSearchType()"> 主な出演作で検索</label>
             </div>
             <div>
-                <label><input type="radio" name="sortOrder" value="default" checked onclick="sortCelebrities('default')"> デフォルト</label><br>
-                <label><input type="radio" name="sortOrder" value="alphabet" onclick="sortCelebrities('alphabet')"> あいうえお順</label>
+                <label><input type="radio" name="sortOrder" value="default" checked onclick="applySorting()"> デフォルト</label><br>
+                <label><input type="radio" name="sortOrder" value="alphabet" onclick="applySorting()"> あいうえお順</label>
             </div>
         </div>
+
+        <!-- リセットボタン -->
+        <div>
+            <button onclick="resetFilters()">リセット</button>
+        </div>
+
+        <!-- 検索ヒット数表示エリア -->
+        <div class="hit-count" id="hitCount">ヒット件数: 0</div>
     </div>
 
     <!-- 声優リスト表示エリア -->
@@ -141,101 +150,256 @@
 
     <!-- フッター -->
     <footer>
-        実在する声優以外は集計しておりません<br>
-        情報不備、未掲載あれば@まで
+        複数人にヒットする作品を優先的に掲載しています<br>
+	掲載できていない作品があればすみません<br>
+        大きいミス等あれば@Harusame97まで
     </footer>
 
     <script>
+
+// 検索モードの切り替え
+function changeSearchType() {
+    const searchType = document.querySelector('input[name="searchType"]:checked').value;
+
+    // 名前やキャラ名で検索が選ばれているときはプルダウンを非表示
+    document.getElementById("searchInput").style.display = searchType === "text" ? "inline-block" : "none";
+    document.getElementById("searchButton").style.display = searchType === "text" ? "inline-block" : "none";
+
+    // 主な出演作で検索が選ばれているときはプルダウンを表示
+    document.getElementById("tagDropdown").style.display = searchType === "tag" ? "inline-block" : "none";
+}
+
+// ページ読み込み時に初期状態を設定
+window.onload = function() {
+    changeSearchType();  // 初期状態に応じて検索窓やプルダウンを切り替える
+};
+
+
+
         // 声優データのサンプル
         const celebrities = [
-            { name: "声優A", furigana: "せいゆうえー", roles: [{ work: "アニメZ", character: "野中太郎" }, { work: "ドラマX", character: "山田花子" }] },
-            { name: "声優B", furigana: "せいゆうびー", roles: [{ work: "映画Y", character: "田中一郎" }, { work: "バラエティ", character: "松本かずえ" }] },
-            { name: "声優C", furigana: "せいゆうしー", roles: [{ work: "アニメZ", character: "佐藤さくら" }] },
-            { name: "声優D", furigana: "せいゆうでぃー", roles: [{ work: "ドラマX", character: "田村りょう" }] },
-            { name: "声優E", furigana: "せいゆういー", roles: [{ work: "映画Y", character: "高橋みさき" }, { work: "アニメZ", character: "鈴木健" }] },
-            { name: "声優F", furigana: "せいゆうえふ", roles: [{ work: "バラエティ", character: "青木みどり" }] },
-            { name: "声優G", furigana: "せいゆうじー", roles: [{ work: "アニメZ", character: "近藤はじめ" }] }
+
+
+            { name: "Liyuu", furigana: "りーゆう", roles: [{ work: "ラブライブ！スーパースター!!", character: "唐可可" }] },
+
+            { name: "M・A・O", furigana: "まお", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "鷺沢文香" },{ work: "プリンセスコネクト！Re:Dive", character: "ぺコリーヌ" },{ work: "がっこうぐらし！", character: "若狭悠里" },{ work: "ひなこのーと", character: "桜木ひな子" },{ work: "アサルトリリィ Last Bullet", character: "倉又雪陽" },{ work: "イロドリミドリ", character: "箱部なる" }] },
+
+            { name: "逢田梨香子", furigana: "あいだりかこ", roles: [{ work: "ラブライブ！サンシャイン!!", character: "桜内梨子" }] },
+
+            { name: "愛美", furigana: "あいみ", roles: [{ work: "BanG Dream!", character: "戸山香澄" },{ work: "D4DJ", character: "山手響子" },{ work: "アイドルマスター ミリオンライブ！", character: "ジュリア" }] },
+
+            { name: "蒼井翔太", furigana: "あおいしょうた", roles: [{ work: "うたの☆プリンスさまっ♪", character: "美風藍" }] },
+
+            { name: "青木志貴", furigana: "あおきしき", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "二宮飛鳥" },{ work: "#コンパス 戦闘摂理解析システム", character: "リリカ" }] },
+
+            { name: "青木遥", furigana: "あおきはるか", roles: [{ work: "ちいかわ", character: "ちいかわ" }] },
+
+            { name: "青木陽菜", furigana: "あおきひな", roles: [{ work: "BanG Dream!", character: "要楽奈" }, { work: "少女☆歌劇 レヴュースタァライト", character: "高千穂ステラ" }] },
+
+            { name: "雨宮天", furigana: "あまみやそら", roles: [{ work: "アイドルマスター ミリオンライブ！", character: "北沢志保" },{ work: "この素晴らしい世界に祝福を！", character: "アクア" },{ work: "IDOLY PRIDE", character: "天動瑠依" },{ work: "キラッとプリ☆チャン", character: "輝イブ" },{ work: "アサルトリリィ Last Bullet", character: "森本結爾" },{ work: "#コンパス 戦闘摂理解析システム", character: "ジャンヌ ダルク" }] },
+
+            { name: "飯田友子", furigana: "いいだゆうこ", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "速水奏" }] },
+
+            { name: "伊藤美来", furigana: "いとうみく", roles: [{ work: "アイドルマスター ミリオンライブ！", character: "七尾百合子" },{ work: "BanG Dream!", character: "弦巻こころ" },{ work: "五等分の花嫁", character: "中野三玖" },{ work: "安達としまむら", character: "しまむら" },{ work: "プリンセスコネクト！Re:Dive", character: "コッコロ" },{ work: "イロドリミドリ", character: "小野美苗" }] },
+
+            { name: "伊藤ゆいな", furigana: "いとうゆいな", roles: [{ work: "真夜中ぱんチ", character: "苺子" }] },
+
+            { name: "今泉りおな", furigana: "いまいずみりおな", roles: [{ work: "ウマ娘 プリティーダービー", character: "ヤマニンゼファー" }] },
+
+            { name: "内田秀", furigana: "うちだしゅう", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "ミア・テイラー" }] },
+
+            { name: "内田真礼", furigana: "うちだまあや", roles: [{ work: "中二病でも恋がしたい！", character: "小鳥遊六花" },{ work: "ご注文はうさぎですか？", character: "シャロ" },{ work: "アイドルマスター シンデレラガールズ", character: "神崎蘭子" },{ work: "青春ブタ野郎はバニーガール先輩の夢を見ない", character: "豊浜のどか" },{ work: "プリンセスコネクト！Re:Dive", character: "マホ" }] },
+
+            { name: "上田麗奈", furigana: "うえだれいな", roles: [{ work: "アイカツスターズ！", character: "白銀リリィ" },{ work: "ばくおん!!", character: "佐倉羽音" },{ work: "アイドルマスター ミリオンライブ！", character: "高坂海美" },{ work: "私に天使が舞い降りた！", character: "星野みやこ" },{ work: "恋する小惑星", character: "鈴矢萌" },{ work: "プロジェクトセカイ カラフルステージ！feat.初音ミク", character: "望月穂波" }] },
+
+            { name: "絵森彩", furigana: "えもりあや", roles: [{ work: "ラブライブ！スーパースター!!", character: "鬼塚夏美" }] },
+
+            { name: "大熊和奏", furigana: "おおくまわかな", roles: [{ work: "ラブライブ！スーパースター!!", character: "若菜四季" }] },
+
+            { name: "大塚芳忠", furigana: "おおつかほうちゅう", roles: [{ work: "アイドルマスター ミリオンライブ！", character: "高木順二朗" }] },
+
+            { name: "大西亜玖璃", furigana: "おおにしあぐり", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "上原歩夢" },{ work: "アサルトリリィ Last Bullet", character: "早川弥宏" }] },
+
+            { name: "岡咲美保", furigana: "おかさきみほ", roles: [{ work: "転生したらスライムだった件", character: "リムル＝テンペスト" },{ work: "アイドルマスター シャイニーカラーズ", character: "市川雛菜" },{ work: "ウマ娘 プリティーダービー", character: "桐生院葵" },{ work: "プリンセスコネクト！Re:Dive", character: "カリザ" },{ work: "オンゲキ", character: "日向千夏" }] },
+
+            { name: "小倉唯", furigana: "おぐらゆい", roles: [{ work: "ロウきゅーぶ！", character: "袴田ひなた" },{ work: "ウマ娘 プリティーダービー", character: "マンハッタンカフェ" },{ work: "ひなこのーと", character: "柊真雪" },{ work: "ワッチャプリマジ！", character: "はにたん" },{ work: "プロジェクトセカイ カラフルステージ！feat.初音ミク", character: "花里みのり" },{ work: "プリンセスコネクト！Re:Dive", character: "キョウカ" }] },
+
+            { name: "川口莉奈", furigana: "かわぐちりな", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "斑鳩ルカ" }] },
+
+            { name: "菅叶和", furigana: "かんかんな", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "大沢瑠璃乃" }] },
+
+            { name: "鬼頭明里", furigana: "きとうあかり", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "近江彼方" },{ work: "ブレンド・S", character: "日向夏帆" },{ work: "ウマ娘 プリティーダービー", character: "セイウンスカイ" },{ work: "私に天使が舞い降りた！", character: "姫坂乃愛" },{ work: "Re:ステージ！", character: "月坂紗由" },{ work: "2.5次元の誘惑", character: "橘美花莉" },{ work: "安達としまむら", character: "安達"} ,{ work: "プリンセスコネクト！Re:Dive", character: "ミソラ" }] },
+
+            { name: "木戸衣吹", furigana: "きどいぶき", roles: [{ work: "アイドルマスター ミリオンライブ！", character: "矢吹可奈" },{ work: "ばくおん!!", character: "中野千雨" }] },
+
+            { name: "楠木ともり", furigana: "くすのきともり", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "優木せつ菜" }, { work: "先輩がうざい後輩の話", character: "五十嵐双葉(TVアニメ版)" }, { work: "プロジェクトセカイ カラフルステージ！feat.初音ミク", character: "宵崎奏" }] },
+
+            { name: "久保田未夢", furigana: "くぼたみゆ", roles: [{ work: "プリパラ", character: "北条そふぃ" },{ work: "キラッとプリ☆チャン", character: "萌黄えも" },{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "朝香果林" }] },
+
+            { name: "来栖りん", furigana: "くるすりん", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "安養寺姫芽" }] },
+
+            { name: "黒木ほの香", furigana: "くろきほのか", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "大崎甘奈" }] },
+
+            { name: "小泉萌香", furigana: "こいずみもえか", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "三船栞子" }, { work: "少女☆歌劇 レヴュースタァライト", character: "大場なな" },{ work: "D4DJ", character: "笹子・ジェニファー・由香" },{ work: "アサルトリリィ Last Bullet", character: "富永真" }] },
+
+            { name: "河野ひより", furigana: "こうのひより", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "小宮果穂" }] },
+
+            { name: "香里有佐", furigana: "こうりありさ", roles: [{ work: "アイドルマスター ミリオンライブ！", character: "桜守歌織" }] },
+
+            { name: "小林愛香", furigana: "こばやしあいか", roles: [{ work: "ラブライブ！サンシャイン!!", character: "津島善子" }] },
+
+            { name: "小森結梨", furigana: "こもりゆり", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "古賀小春" }] },
+
+            { name: "近藤玲奈", furigana: "こんどうれいな", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "風野灯織" },{ work: "#コンパス 戦闘摂理解析システム", character: "双挽乃保" },{ work: "オンゲキ", character: "桜井春菜" }] },
+
+            { name: "佐伯伊織", furigana: "さえきいおり", roles: [{ work: "ウマ娘 プリティーダービー", character: "キングヘイロー" }, { work: "アサルトリリィ Last Bullet", character: "妹島広夢" }] },
+
+            { name: "相良茉優", furigana: "さがらまゆ", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "中須かすみ" },{ work: "ワッチャプリマジ！", character: "みるき" }] },
+
+            { name: "佐倉綾音", furigana: "さくらあやね", roles: [{ work: "ご注文はうさぎですか？", character: "ココア" },{ work: "五等分の花嫁", character: "中野四葉" },{ work: "BanG Dream!", character: "美竹蘭" },{ work: "4人はそれぞれウソをつく", character: "関根" },{ work: "プリンセスコネクト！Re:Dive", character: "チエル" },{ work: "#コンパス 戦闘摂理解析システム", character: "メグメグ" }] },
+
+            { name: "櫻井陽菜", furigana: "さくらいひな", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "百生吟子" }] },
+
+            { name: "佐々木琴子", furigana: "ささきことこ", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "夕霧綴理" }] },
+
+            { name: "佐々木李子", furigana: "ささきりこ", roles: [{ work: "キラッとプリ☆チャン", character: "だいあ" },{ work: "BanG Dream!", character: "三角初華" },{ work: "ワールドダイスター", character: "流石知冴" },{ work: "ひなこのーと", character: "桜木ひな子" },{ work: "アサルトリリィ Last Bullet", character: "倉又雪陽" }] },
+
+            { name: "指出毬亜", furigana: "さしでまりあ", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "エマ・ヴェルデ" },{ work: "私に天使が舞い降りた！", character: "白咲花" },{ work: "恋する小惑星", character: "猪瀬舞" },{ work: "キラッとプリ☆チャン", character: "輝イブ" },{ work: "アサルトリリィ Last Bullet", character: "森本結爾" }] },
+
+            { name: "佐藤亜美菜", furigana: "さとうあみな", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "橘ありす" }] },
+
+            { name: "沢澤砂羽", furigana: "さわさわさわ", roles: [{ work: "千恋*万花", character: "レナ・リヒテナウアー" }] },
+
+            { name: "紫月杏朱彩", furigana: "しづきあずさ", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "七草にちか役" }] },
+
+            { name: "芝崎典子", furigana: "しばさきのりこ", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "桑山千雪" }] },
+
+            { name: "白石晴香", furigana: "しらいしはるか", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "園田智代子" },{ work: "干物妹！うまるちゃん", character: "本場切絵" }] },
+
+            { name: "鈴原希実", furigana: "すずはらのぞみ", roles: [{ work: "ラブライブ！スーパースター!!", character: "桜小路きな子" }] },
+
+            { name: "関根瞳", furigana: "せきねひとみ", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "櫻木真乃" }] },
+
+            { name: "仙台エリ", furigana: "せんだいえり", roles: [{ work: "ノラと皇女と野良猫ハート", character: "黒木未知" }] },
+
+            { name: "高田憂希", furigana: "たかだゆうき", roles: [{ work: "NEW GAME!", character: "涼風青葉" },{ work: "アイドルマスター シンデレラガールズ", character: "依田芳乃" },{ work: "Tokyo 7th シスターズ", character: "天堂寺ムスビ" }] },
+
+            { name: "高森奈津美", furigana: "たかもりなつみ", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "前川みく" },{ work: "ノラと皇女と野良猫ハート", character: "パトリシア・オブ・エンド" },{ work: "五等分の花嫁", character: "上杉らいは" },{ work: "プリンセスコネクト！Re:Dive", character: "カオリ" }] },
+
+            { name: "高柳知葉", furigana: "たかやなぎともよ", roles: [{ work: "恋する小惑星", character: "木ノ幡みら" },{ work: "まちカドまぞく", character: "陽夏木ミカン" },{ work: "ウマ娘 プリティーダービー", character: "オグリキャップ" },{ work: "Re:ステージ！", character: "南風野朱莉" }] },
+
+            { name: "田嶌紗蘭", furigana: "たじまさらん", roles: [{ work: "アイドルマスター シャイニーカラーズ", character: "福丸小糸" }] },
+
+            { name: "立花日菜", furigana: "たちばなひな", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "久川凪" },{ work: "推しが武道館いってくれたら死ぬ", character: "市井舞菜" },{ work: "ウマ娘 プリティーダービー", character: "サトノダイヤモンド" },{ work: "プリンセスコネクト！Re:Dive", character: "アネモネ" }] },
+
+            { name: "立花理香", furigana: "たちばなりか", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "小早川紗枝" },{ work: "アサルトリリィ Last Bullet", character: "番匠谷依奈" },{ work: "プリンセスコネクト！Re:Dive", character: "キャル" },{ work: "イロドリミドリ", character: "芒崎奏" }] },
+
+            { name: "伊達さゆり", furigana: "だてさゆり", roles: [{ work: "ラブライブ！スーパースター!!", character: "澁谷かのん" },{ work: "アサルトリリィ Last Bullet", character: "石塚藤乃" }] },
+
+            { name: "田中ちえ美", furigana: "たなかちえみ", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "天王寺璃奈" },{ work: "サクラクエスト", character: "織部凛々子" },{ work: "4人はそれぞれウソをつく", character: "リッカ" },{ work: "アサルトリリィ Last Bullet", character: "毛綱乃彩" }] },
+
+            { name: "田野アサミ", furigana: "たのあさみ", roles: [{ work: "ラブライブ！サンシャイン!!", character: "鹿角聖良" },{ work: "ゾンビランドサガ", character: "二階堂サキ" }] },
+
+            { name: "月音こな", furigana: "つきねこな", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "藤島慈" }] },
+
+            { name: "土屋李央", furigana: "つちやりお", roles: [{ work: "CUE!", character: "遠見鳴" },{ work: "アイドルマスター シャイニーカラーズ", character: "樋口円香" }] },
+
+            { name: "長月あおい", furigana: "ながつきあおい", roles: [{ work: "学園アイドルマスター", character: "花海咲季" }] },
+
+            { name: "夏目ここな", furigana: "なつめここな", roles: [{ work: "IDOLY PRIDE", character: "伊吹渚" }] },
+
+            { name: "夏吉ゆうこ", furigana: "なつよしゆうこ", roles: [{ work: "SHOW BY ROCK!!", character: "マシマヒメコ" },{ work: "アサルトリリィ Last Bullet", character: "白井夢結" },{ work: "ウマ娘 プリティーダービー", character: "シュヴァルグラン" }] },
+
+            { name: "楡井希実", furigana: "にれいのぞみ", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "日野下花帆" }] },
+
+            { name: "野中ここな", furigana: "のなかここな", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "村野さやか" }] },
+
+            { name: "花岩香奈", furigana: "はないわかな", roles: [{ work: "学園アイドルマスター", character: "葛城リーリヤ" }] },
+
+            { name: "花澤香菜", furigana: "はなざわかな", roles: [{ work: "Angel Beats!", character: "立華かなで" },{ work: "ロウきゅーぶ！", character: "湊智花" },{ work: "結城友奈は勇者である", character: "乃木園子" }, { work: "五等分の花嫁", character: "中野一花" },{ work: "プリンセスコネクト！Re:Dive", character: "アオイ" },{ work: "#コンパス 戦闘摂理解析システム", character: "狐ヶ咲甘色" }] },
+
+            { name: "花宮初奈", furigana: "はなみやにいな", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "乙宗梢" }] },
+
+            { name: "林鼓子", furigana: "はやしここ", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "優木せつ菜" },{ work: "キラッとプリ☆チャン", character: "桃山みらい" },{ work: "BanG Dream!", character: "椎名立希" }] },
+
+            { name: "葉山風花", furigana: "はやまふうか", roles: [{ work: "ラブライブ！蓮ノ空女学院スクールアイドルクラブ", character: "徒町小鈴" }] },
+
+            { name: "遥そら", furigana: "はるかそら", roles: [{ work: "千恋*万花", character: "朝武芳乃" }] },
+
+            { name: "春瀬なつみ", furigana: "はるせなつみ", roles: [{ work: "アイドルマスター シンデレラガールズ", character: "龍崎薫" }] },
+
+            { name: "原由実", furigana: "はらゆみ", roles: [{ work: "THE IDOLM@STER", character: "四条貴音" }] },
+
+            { name: "平塚紗依", furigana: "ひらつかさえ", roles: [{ work: "ひみつのアイプリ", character: "星川みつき" },{ work: "Re:ステージ！", character: "双葉詩穂" }] },
+
+            { name: "法元明菜", furigana: "ほうもとあきな", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "鐘嵐珠" }] },
+
+            { name: "本泉莉奈", furigana: "ほんいずみりな", roles: [{ work: "プロジェクトセカイ カラフルステージ！feat.初音ミク", character: "日野森雫" }] },
+
+            { name: "前田佳織里", furigana: "まえだかおり", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "桜坂しずく" },{ work: "アイカツスターズ！", character: "双葉アリア" },{ work: "ウマ娘 プリティーダービー", character: "ナイスネイチャ" },{ work: "魔法少女にあこがれて", character: "花菱はるか/マジアマゼンタ" },{ work: "2.5次元の誘惑", character: "天乃リリサ" },{ work: "アサルトリリィ Last Bullet", character: "今叶星" },{ work: "プリンセスコネクト！Re:Dive", character: "クリア" }] },
+
+            { name: "真野美月", furigana: "まのみつき", roles: [{ work: "ウマ娘 プリティーダービー", character: "サクラローレル" }] },
+
+            { name: "水瀬いのり", furigana: "みなせいのり", roles: [{ work: "ご注文はうさぎですか？", character: "チノ" },{ work: "五等分の花嫁", character: "中野五月" },{ work: "がっこうぐらし！", character: "丈槍由紀" },{ work: "青春ブタ野郎はバニーガール先輩の夢を見ない", character: "牧之原翔子" },{ work: "Re:ゼロから始める異世界生活", character: "レム" },{ work: "プリンセスコネクト！Re:Dive", character: "カスミ" },{ work: "Tokyo 7th シスターズ", character: "六咲コニー" }] },
+
+            { name: "村上奈津実", furigana: "むらかみなつみ", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "宮下愛" },{ work: "アイカツスターズ！", character: "早乙女あこ" },{ work: "4人はそれぞれウソをつく", character: "千代" }] },
+
+            { name: "守屋亨香", furigana: "もりやきょうか", roles: [{ work: "CUE!", character: "鹿野志穂" }] },
+
+            { name: "矢野妃菜喜", furigana: "やのひなき", roles: [{ work: "ラブライブ！虹ヶ咲学園スクールアイドル同好会", character: "高咲侑" },{ work: "ウマ娘 プリティーダービー", character: "キタサンブラック" },{ work: "アサルトリリィ Last Bullet", character: "月岡椛" }] },
+
+            { name: "結那", furigana: "ゆいな", roles: [{ work: "ラブライブ！スーパースター!!", character: "ウィーン・マルガレーテ" }] },
+
+            { name: "若山詩音", furigana: "わかやましおん", roles: [{ work: "リコリス・リコイル", character: "井ノ上たきな" }] },
+
+
+
+
         ];
 
-        // 使用するタグのリスト
-        const tags = ["ドラマX", "映画Y", "バラエティ", "アニメZ"];
+        // タグ一覧の自動生成
+        const tags = Array.from(new Set(celebrities.flatMap(celeb => celeb.roles.map(role => role.work))));
 
-        // 初期データを表示
-        function displayCelebrities(list) {
-            const container = document.getElementById("celebrityContainer");
-            container.innerHTML = "";
+        // 現在の表示リスト（フィルタリング後の状態を保持）
+        let currentDisplayList = [...celebrities];
 
-            if (list.length === 0) {
-                container.innerHTML = '<div class="no-results">※該当なし</div>';
-                return;
-            }
+        // 検索ヒット件数の表示
+        function updateHitCount(count) {
+            document.getElementById("hitCount").innerText = `ヒット件数: ${count}`;
+        }
 
-            list.forEach(celeb => {
-                const card = document.createElement("div");
-                card.className = "celebrity-card";
-                card.innerHTML = `
-                    <div class="celebrity-furigana">${celeb.furigana}</div>
-                    <div class="celebrity-name" onclick="showCelebrityDetails('${celeb.name}')">${celeb.name}</div>
-                    <div>主な出演作: ${getRandomRoles(celeb.roles).join(", ")}</div>
-                `;
-                container.appendChild(card);
+// 初期データを表示
+function displayCelebrities(list, highlightQuery = "") {
+    currentDisplayList = list;
+    const container = document.getElementById("celebrityContainer");
+    container.innerHTML = "";
+
+    list.forEach(celeb => {
+        const card = document.createElement("div");
+        card.className = "celebrity-card";
+        card.innerHTML = `
+            <div class="celebrity-furigana">${celeb.furigana}</div>
+            <div class="celebrity-name" onclick="showCelebrityDetails('${celeb.name}')">${celeb.name}</div>
+            <div>主な出演作: ${getRandomRoles(celeb.roles, highlightQuery).join(", ")}</div>
+        `;
+        container.appendChild(card);
+    });
+    updateHitCount(list.length);
+}
+
+        // 主な出演作で検索の並び順（アルファベット → あいうえお順 → 漢字順）
+        function getSortedTags() {
+            return tags.sort((a, b) => {
+                return a.localeCompare(b, "ja");
             });
         }
 
-        // ランダムに3つの出演作を表示
-        function getRandomRoles(roles) {
-            const randomRoles = roles.length > 3 ? roles.sort(() => 0.5 - Math.random()).slice(0, 3) : roles;
-            return randomRoles.map(role => `${role.work}「${role.character}」`);
-        }
-
-        // 名前やキャラ名で検索
-        function searchCelebrities() {
-            const query = document.getElementById("searchInput").value.toLowerCase();
-            const filtered = celebrities.filter(celeb => 
-                celeb.name.toLowerCase().includes(query) ||
-                celeb.roles.some(role => role.character.toLowerCase().includes(query))
-            );
-            displayCelebrities(filtered);
-        }
-
-        // タグでフィルタリング
-        function filterByTag() {
-            const selectedTag = document.getElementById("tagDropdown").value;
-            const filtered = selectedTag 
-                ? celebrities.filter(celeb => celeb.roles.some(role => role.work === selectedTag))
-                : celebrities;
-            displayCelebrities(filtered);
-        }
-
-        // 検索タイプの変更
-        function changeSearchType() {
-            const searchType = document.querySelector('input[name="searchType"]:checked').value;
-            document.getElementById("tagDropdown").style.display = searchType === "tag" ? "inline-block" : "none";
-            document.getElementById("searchButton").style.display = searchType === "text" ? "inline-block" : "none";
-            document.getElementById("searchInput").style.display = searchType === "text" ? "inline-block" : "none";
-        }
-
-        // あいうえお順ソート
-        function sortCelebrities(order) {
-            let sortedList = [...celebrities];
-            if (order === "alphabet") {
-                sortedList.sort((a, b) => a.furigana.localeCompare(b.furigana, "ja"));
-            }
-            displayCelebrities(sortedList);
-        }
-
-        // 詳細表示
-        function showCelebrityDetails(name) {
-            const celeb = celebrities.find(c => c.name === name);
-            if (celeb) {
-                alert(`【${celeb.name}】\n主な出演作: ${celeb.roles.map(role => `${role.work}「${role.character}」`).join(", ")}`);
-            }
-        }
-
-        // タグリストの初期化
+        // タグプルダウンにタグをセット（並び順を調整）
         function populateTagDropdown() {
             const dropdown = document.getElementById("tagDropdown");
-            tags.forEach(tag => {
+            dropdown.innerHTML = "<option value=''>主な出演作で検索する</option>";
+            const sortedTags = getSortedTags();
+            sortedTags.forEach(tag => {
                 const option = document.createElement("option");
                 option.value = tag;
                 option.innerText = tag;
@@ -243,8 +407,234 @@
             });
         }
 
+        // 並び替え処理
+        function applySorting() {
+            const sortOrder = document.querySelector('input[name="sortOrder"]:checked').value;
+            const selectedTag = document.getElementById("tagDropdown").value;
+
+            if (sortOrder === "alphabet") {
+                currentDisplayList.sort((a, b) => a.furigana.localeCompare(b.furigana, "ja"));
+            } else if (sortOrder === "default" && selectedTag) {
+                // タグ選択時のデフォルト順を適用
+                const customOrder = defaultSortOrders[selectedTag] || [];
+                currentDisplayList.sort((a, b) => {
+                    const indexA = customOrder.indexOf(a.name);
+                    const indexB = customOrder.indexOf(b.name);
+                    return (indexA === -1 ? currentDisplayList.length : indexA) - (indexB === -1 ? currentDisplayList.length : indexB);
+                });
+            }
+            displayCelebrities(currentDisplayList);
+        }
+
+        // リセットボタン（全件表示＋デフォルト順）
+        function resetFilters() {
+            document.getElementById("searchInput").value = '';
+            document.getElementById("tagDropdown").value = '';
+            document.querySelector('input[name="searchType"][value="text"]').checked = true;
+            document.querySelector('input[name="sortOrder"][value="default"]').checked = true;
+            displayCelebrities(celebrities);
+        }
+
+        // デフォルト並びの管理
+        const defaultSortOrders = {
+
+  "アイドルマスター シャイニーカラーズ": ["関根瞳", "近藤玲奈", "峯田茉優", "礒部花凜","菅沼千紗","八巻アンナ","希水しお","結名美月","河野ひより","白石晴香","永井真里子","丸岡和佳奈", "涼本あきほ", "黒木ほの香", "前川涼子","芝崎典子","田中有紀","幸村恵理","北原沙弥香","和久井優","土屋李央","田嶌紗蘭", "岡咲美保", "紫月杏朱彩", "山根綺","川口莉奈","三川華月","小澤麗那"],
+
+  "ラブライブ！サンシャイン!!": ["伊波杏樹", "逢田梨香子", "諏訪ななか", "小宮有紗","斉藤朱夏","小林愛香","高槻かなこ","鈴木愛奈","降幡愛","田野アサミ","佐藤日向"],
+
+  "ラブライブ！スーパースター!!": ["伊達さゆり", "Liyuu", "岬なこ", "ペイトン尚未","青山なぎさ","鈴原希実","薮島朱音","大熊和奏","絵森彩","結那","坂倉花"],
+
+            "ラブライブ！虹ヶ咲学園スクールアイドル同好会": ["大西亜玖璃", "相良茉優", "前田佳織里", "久保田未夢","村上奈津実","鬼頭明里","楠木ともり","林鼓子","指出毬亜","田中ちえ美","小泉萌香","内田秀","法元明菜","矢野妃菜喜"],
+
+            "ラブライブ！蓮ノ空女学院スクールアイドルクラブ": ["楡井希実", "野中ここな", "花宮初奈", "佐々木琴子","菅叶和","月音こな","櫻井陽菜","葉山風花","来栖りん"],
+
+        };
+
+// 初期の順序を保持
+const originalOrder = celebrities.slice(); // celebrities配列をコピーして初期の順序を保持
+
+// 並び替えを適用
+function applySorting() {
+    const sortOrder = document.querySelector('input[name="sortOrder"]:checked').value;
+    
+    if (sortOrder === "alphabet") {
+        // あいうえお順にソート
+        currentDisplayList.sort((a, b) => a.furigana.localeCompare(b.furigana, "ja"));
+    } else if (sortOrder === "default") {
+        // デフォルトの順序に戻す
+        currentDisplayList = originalOrder.slice(); // originalOrderをコピーして初期の順序に戻す
+    }
+
+    displayCelebrities(currentDisplayList);
+}
+
+// リセットボタン用関数
+function resetFilters() {
+    document.getElementById("searchInput").value = "";   // テキスト検索の入力をクリア
+    document.getElementById("tagDropdown").value = "";   // タグ検索をクリア
+    document.querySelector('input[name="searchType"][value="text"]').checked = true; // 名前やキャラ名で検索を選択
+    document.querySelector('input[name="sortOrder"][value="default"]').checked = true; // デフォルト並び順を選択
+
+    // 検索タイプに応じて検索窓とプルダウンを切り替え
+    changeSearchType(); 
+
+    // 全データ表示かつデフォルト順で再表示
+    displayCelebrities([...celebrities]);  
+    applySorting(); // デフォルト順に適用
+}
+
+
+// リセットボタンの処理を行う関数
+function resetDisplay() {
+    // 検索入力とプルダウンの初期化
+    document.getElementById("searchInput").value = "";
+    document.getElementById("tagDropdown").value = "";
+
+    // 検索モードを「名前やキャラ名で検索」に設定し、ラジオボタンを選択状態に
+    document.querySelector('input[name="searchType"][value="text"]').checked = true;
+
+    // 検索窓とプルダウンの表示切り替え
+    document.getElementById("searchInput").style.display = "inline-block";
+    document.getElementById("searchButton").style.display = "inline-block";
+    document.getElementById("tagDropdown").style.display = "none";
+
+    // デフォルトの順序で全件を表示
+    displayCelebrities(celebrities);
+}
+
+
+
+// プルダウンにタグをセット（順序調整）
+function populateTagDropdown() {
+    const dropdown = document.getElementById("tagDropdown");
+    dropdown.innerHTML = "<option value=''>主な出演作で検索する</option>";
+
+    // タグをアルファベット→あいうえお→漢字の順にソート
+    tags.sort((a, b) => a.localeCompare(b, "ja"));
+    tags.forEach(tag => {
+        const option = document.createElement("option");
+        option.value = tag;
+        option.innerText = tag;
+        dropdown.appendChild(option);
+    });
+}
+
+
+ // applySorting関数の修正
+function applySorting() {
+    const sortOrder = document.querySelector('input[name="sortOrder"]:checked').value;
+
+    if (sortOrder === "alphabet") {
+        // 現在のフィルタリングリストをあいうえお順に並び替え
+        currentDisplayList.sort((a, b) => a.furigana.localeCompare(b.furigana, "ja"));
+    } else if (sortOrder === "default") {
+        // 現在のフィルタリングリストをデフォルト順に戻す
+        const activeTag = document.getElementById("tagDropdown").value;
+        if (activeTag) {
+            // 特定のタグが選択されている場合、そのタグに基づく並び替え
+            const customOrder = defaultSortOrders[activeTag] || [];
+            currentDisplayList.sort((a, b) => {
+                const indexA = customOrder.indexOf(a.name);
+                const indexB = customOrder.indexOf(b.name);
+                return (indexA === -1 ? currentDisplayList.length : indexA) - (indexB === -1 ? currentDisplayList.length : indexB);
+            });
+        } else {
+            // タグが未選択の場合、originalOrder順に戻す
+            currentDisplayList = originalOrder.filter(celeb => currentDisplayList.includes(celeb));
+        }
+    }
+    
+    // ソート結果の表示
+    displayCelebrities(currentDisplayList);
+}
+
+
+ 
+// 表示する主な出演作を検索された作品を先頭にしてランダムで3つ選択
+function getRandomRoles(roles, highlightQuery = "") {
+    const selectedRoles = [];
+    const activeTag = document.getElementById("tagDropdown").value;  // 現在選択された作品タグ
+
+    // 1. タグ選択の一致する役を優先して追加
+    const mainRoleIndex = roles.findIndex(role => role.work === activeTag);
+
+    if (mainRoleIndex !== -1) {
+        // タグ一致する作品を太字で先頭に追加
+        selectedRoles.push(`<strong>${roles[mainRoleIndex].work}（${roles[mainRoleIndex].character}）</strong>`);
+
+        // 残りの作品からランダムで2つ選択
+        const remainingRoles = roles.filter((_, index) => index !== mainRoleIndex);
+        const randomRoles = remainingRoles.sort(() => Math.random() - 0.5).slice(0, 2);
+
+        randomRoles.forEach(role => {
+            const highlightedWork = highlightQuery && role.work.includes(highlightQuery) ? `<strong>${role.work}</strong>` : role.work;
+            const highlightedCharacter = highlightQuery && role.character.includes(highlightQuery) ? `<strong>${role.character}</strong>` : role.character;
+            selectedRoles.push(`${highlightedWork}（${highlightedCharacter}）`);
+        });
+    } else {
+        // 2. タグ選択なしの通常ランダム表示または検索強調表示
+        const highlightedRoles = roles.map(role => {
+            // キーワードに一致する部分を太字で強調
+            const highlightedWork = highlightQuery && role.work.includes(highlightQuery) ? `<strong>${role.work}</strong>` : role.work;
+            const highlightedCharacter = highlightQuery && role.character.includes(highlightQuery) ? `<strong>${role.character}</strong>` : role.character;
+            return `${highlightedWork}（${highlightedCharacter}）`;
+        });
+
+        // 強調表示された役を先頭に並べ、ランダムで3つ選択
+        const matchedRoles = highlightedRoles.filter(role => role.includes("<strong>"));
+        const nonMatchedRoles = highlightedRoles.filter(role => !role.includes("<strong>"));
+        selectedRoles.push(...matchedRoles, ...nonMatchedRoles.slice(0, 3 - matchedRoles.length));
+    }
+
+    return selectedRoles;
+}
+
+
+// 名前やキャラ名で検索
+function searchCelebrities() {
+    const searchQuery = document.getElementById("searchInput").value.toLowerCase();
+    const filteredList = celebrities.filter(celeb =>
+        celeb.name.toLowerCase().includes(searchQuery) ||
+        celeb.roles.some(role => role.character.toLowerCase().includes(searchQuery))
+    );
+    displayCelebrities(filteredList, searchQuery);  // 検索キーワードを渡す
+}
+
+// 主な出演作で絞り込み
+function filterByTag() {
+    const selectedTag = document.getElementById("tagDropdown").value;
+    if (selectedTag) {
+        const filteredList = celebrities.filter(celeb => 
+            celeb.roles.some(role => role.work === selectedTag)
+        );
+        currentDisplayList = filteredList;  // フィルタ結果をcurrentDisplayListにセット
+    } else {
+        currentDisplayList = [...celebrities];  // すべて表示
+    }
+
+    applySorting();  // フィルタ結果に現在の並び順を適用
+    displayCelebrities(currentDisplayList);
+}
+        // 検索モードの切り替え
+        function changeSearchType() {
+            const searchType = document.querySelector('input[name="searchType"]:checked').value;
+            document.getElementById("searchInput").style.display = searchType === "text" ? "inline-block" : "none";
+            document.getElementById("searchButton").style.display = searchType === "text" ? "inline-block" : "none";
+            document.getElementById("tagDropdown").style.display = searchType === "tag" ? "inline-block" : "none";
+        }
+
+        // 声優詳細を表示 (名前をタップ時に出演作を表示)
+        function showCelebrityDetails(name) {
+            const celebrity = celebrities.find(celeb => celeb.name === name);
+            if (celebrity) {
+                const roles = celebrity.roles.map(role => `${role.work}（${role.character}）`).join("\n");
+                alert(`主な出演作:\n${roles}`);
+            }
+        }
+
         populateTagDropdown();
         displayCelebrities(celebrities);
     </script>
+
 </body>
 </html>
